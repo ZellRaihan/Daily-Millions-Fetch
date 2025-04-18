@@ -3,22 +3,14 @@ const axios = require('axios');
 const { MongoClient, ObjectId } = require('mongodb');
 const { getBuildId } = require('./getBuildId');
 
-// MongoDB connection URI from .env file
+// MongoDB connection URI from environment variable
 const uri = process.env.MONGODB_URI;
 
 // Function to fetch lottery results
 async function fetchLotteryResults() {
   try {
-    // First, ensure we have the latest build ID
-    await getBuildId();
-    
-    // Reload the .env file to get the updated API URL
-    require('dotenv').config();
-    const lotteryApiUrl = process.env.LOTTERY_API_URL || '';
-    
-    if (!lotteryApiUrl) {
-      throw new Error('LOTTERY_API_URL is not defined in .env file');
-    }
+    // First, ensure we have the latest build ID and get the API URL directly
+    const lotteryApiUrl = await getBuildId();
     
     console.log('Fetching lottery results...');
     const response = await axios.get(lotteryApiUrl);
@@ -58,6 +50,10 @@ function isResultComplete(result) {
 
 // Function to store results in MongoDB
 async function storeResultsInMongoDB(results) {
+  if (!uri) {
+    throw new Error('MONGODB_URI is not defined in environment variables');
+  }
+  
   const client = new MongoClient(uri);
   
   try {
@@ -142,6 +138,10 @@ async function storeResultsInMongoDB(results) {
 
 // Function to get all incomplete results
 async function getIncompleteResults() {
+  if (!uri) {
+    throw new Error('MONGODB_URI is not defined in environment variables');
+  }
+  
   const client = new MongoClient(uri);
   
   try {

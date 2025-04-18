@@ -1,12 +1,20 @@
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
-require('dotenv').config();
 
 const LOTTERY_BASE_URL = 'https://www.lottery.ie/results/daily-million/history';
 
+// Global variable to store the latest API URL
+let cachedApiUrl = null;
+
 async function getBuildId() {
   try {
+    // If we already have a cached URL, return it
+    if (cachedApiUrl) {
+      console.log('Using cached API URL:', cachedApiUrl);
+      return cachedApiUrl;
+    }
+    
     console.log(`Fetching HTML from ${LOTTERY_BASE_URL}...`);
     const response = await axios.get(LOTTERY_BASE_URL);
     
@@ -26,24 +34,34 @@ async function getBuildId() {
       const apiUrl = `https://www.lottery.ie/_next/data/${buildId}/en/results/daily-million/history.json`;
       console.log(`Complete API URL: ${apiUrl}`);
       
-      // Update the .env file with the new API URL
-      const envPath = path.join(__dirname, '.env');
-      let envContent = fs.readFileSync(envPath, 'utf8');
+      // Store in cache for future use
+      cachedApiUrl = apiUrl;
       
-      // Replace the existing API URL or add a new one
-      if (envContent.includes('LOTTERY_API_URL=')) {
-        envContent = envContent.replace(
-          /LOTTERY_API_URL=.*/,
-          `LOTTERY_API_URL=${apiUrl}`
-        );
-      } else {
-        envContent += `\nLOTTERY_API_URL=${apiUrl}`;
+      // Try to write to .env file if possible (for local development)
+      try {
+        const envPath = path.join(__dirname, '.env');
+        if (fs.existsSync(envPath)) {
+          let envContent = fs.readFileSync(envPath, 'utf8');
+          
+          // Replace the existing API URL or add a new one
+          if (envContent.includes('LOTTERY_API_URL=')) {
+            envContent = envContent.replace(
+              /LOTTERY_API_URL=.*/,
+              `LOTTERY_API_URL=${apiUrl}`
+            );
+          } else {
+            envContent += `\nLOTTERY_API_URL=${apiUrl}`;
+          }
+          
+          fs.writeFileSync(envPath, envContent);
+          console.log('.env file updated with the latest API URL');
+        }
+      } catch (error) {
+        // Just log the error but don't fail - this is expected in serverless environments
+        console.log('Could not update .env file (expected in serverless environments):', error.message);
       }
       
-      fs.writeFileSync(envPath, envContent);
-      console.log('.env file updated with the latest API URL');
-      
-      return buildId;
+      return apiUrl;
     } else {
       throw new Error('Build ID not found in the HTML response');
     }
@@ -56,8 +74,9 @@ async function getBuildId() {
 // Run the function if this script is executed directly
 if (require.main === module) {
   getBuildId()
-    .then(buildId => {
+    .then(url => {
       console.log('Successfully updated build ID');
+      console.log('API URL:', url);
     })
     .catch(error => {
       console.error('Failed to update build ID:', error);
