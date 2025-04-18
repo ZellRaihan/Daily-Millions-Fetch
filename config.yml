@@ -1,0 +1,6 @@
+   tunnel: daily-million
+   credentials-file: C:\Users\RAIHAN\.cloudflared\bef1ae8b-499b-4175-be7f-c97ffa510f2d.json
+   ingress:
+     - hostname: daily-million-results.yasdownload.one
+       service: http://localhost:3000
+     - service: http_status:404
